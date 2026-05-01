@@ -3,5 +3,5 @@ services:
     build: .
     container_name: iron-county-tracker
     ports:
-      - "80:80"
+      - "8082:8082"
     restart: unless-stopped
