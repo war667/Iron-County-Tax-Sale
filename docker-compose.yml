@@ -1,0 +1,7 @@
+services:
+  iron-county-tracker:
+    build: .
+    container_name: iron-county-tracker
+    ports:
+      - "80:80"
+    restart: unless-stopped
