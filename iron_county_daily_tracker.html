@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Utah Tax Sale Tracker 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'JetBrains Mono','Courier New',monospace;background:#0a0f1a;color:#e2e8f0;min-height:100vh;padding:20px}
+  .container{max-width:1300px;margin:0 auto}
+  h1{font-size:20px;font-weight:700;letter-spacing:.05em;background:linear-gradient(135deg,#f97316,#dc2626);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .subtitle{font-size:11px;color:#64748b;margin-top:4px;letter-spacing:.06em}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;border-bottom:1px solid #1e293b;padding-bottom:14px}
+  .county-tabs{display:flex;gap:0;margin-bottom:20px}
+  .county-tab{padding:12px 28px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;letter-spacing:.06em;border:1px solid #1e293b;background:#111827;color:#475569;transition:all .2s;user-select:none}
+  .county-tab:first-child{border-radius:8px 0 0 8px}
+  .county-tab:last-child{border-radius:0 8px 8px 0}
+  .county-tab.active{color:#fff;border-color:var(--accent)}
+  .county-tab:hover:not(.active){color:#94a3b8}
+  .update-bar{background:#111827;border:1px solid #1e293b;border-radius:8px;padding:14px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+  .update-bar textarea{flex:1;min-width:300px;height:60px;background:#0a0f1a;color:#e2e8f0;border:1px dashed #334155;border-radius:6px;padding:10px;font-family:inherit;font-size:11px;resize:vertical;transition:border-color .2s}
+  .update-bar textarea:focus{outline:none;border-color:var(--accent)}
+  .update-bar textarea::placeholder{color:#475569}
+  .update-actions{display:flex;flex-direction:column;gap:6px}
+  .parse-msg{font-size:11px;padding:8px 12px;border-radius:6px;margin-bottom:12px}
+  .parse-ok{background:#0a1f0a;border:1px solid #166534;color:#86efac}
+  .parse-warn{background:#1a1400;border:1px solid #854d0e;color:#fcd34d}
+  .parse-err{background:#1c1117;border:1px solid #7f1d1d;color:#fca5a5}
+  .controls{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+  .btn{padding:8px 18px;border-radius:6px;border:none;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.04em;transition:all .2s}
+  .btn:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.15)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .btn-accent{background:var(--accent);color:#fff}
+  .btn-green{background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff}
+  .btn-outline{background:transparent;border:1px solid;font-weight:600}
+  .btn-orange{border-color:#f97316;color:#f97316}
+  .btn-blue{border-color:#3b82f6;color:#3b82f6}
+  .btn-purple{border-color:#a855f7;color:#a855f7}
+  .progress-bar{height:4px;background:#1e293b;border-radius:2px;overflow:hidden;margin-bottom:14px}
+  .progress-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),#22c55e);transition:width .3s}
+  .stats{display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;margin-bottom:6px}
+  .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px}
+  .legend{display:flex;gap:12px;font-size:10px}
+  .legend-item{display:flex;align-items:center;gap:4px;color:#94a3b8}
+  .legend-dot{width:8px;height:8px;border-radius:2px}
+  .filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .filter-bar select{background:#111827;color:#e2e8f0;border:1px solid #334155;border-radius:4px;padding:5px 8px;font-family:inherit;font-size:11px}
+  .summary-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:14px}
+  .summary-card{background:#111827;border:1px solid #1e293b;border-radius:8px;padding:12px;text-align:center}
+  .summary-num{font-size:22px;font-weight:700;margin-bottom:2px}
+  .summary-label{font-size:9px;color:#64748b;letter-spacing:.08em}
+  .table-wrap{overflow-x:auto;border-radius:8px;border:1px solid #1e293b}
+  table{width:100%;border-collapse:collapse;font-size:11px}
+  thead tr{background:#111827;position:sticky;top:0;z-index:2}
+  th{padding:8px 6px;text-align:left;font-weight:600;color:#64748b;font-size:9px;letter-spacing:.1em;border-bottom:1px solid #1e293b;white-space:nowrap;cursor:pointer}
+  th:hover{color:var(--accent)}
+  td{padding:6px;border-bottom:1px solid rgba(30,41,59,.1)}
+  tr.row-active:nth-child(even){background:#0f172a}
+  tr.row-active:nth-child(odd){background:#0a0f1a}
+  tr.row-redeemed{background:#1a0a0a !important}
+  tr.row-redeemed td{color:#ef4444}
+  tr.row-redeemed td.note-cell input{color:#fca5a5}
+  tr.row-redeemed .mono{color:#b91c1c}
+  .mono{font-family:monospace;font-size:10px;color:#94a3b8}
+  .map-link{color:#22c55e;text-decoration:none;font-weight:700;font-size:10px}
+  .map-link:hover{text-decoration:underline}
+  .searching{color:#f59e0b;animation:pulse 1s infinite}
+  .ellipsis{max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .redeemed-tag{color:#ef4444;font-size:9px;font-weight:700;letter-spacing:.05em}
+  .redeemed-date{font-size:8px;color:#b91c1c;display:block}
+  .note-input{background:transparent;color:#e2e8f0;border:1px solid transparent;border-radius:3px;padding:3px 6px;font-family:inherit;font-size:10px;width:100%;min-width:120px;transition:border-color .2s}
+  .note-input:focus{outline:none;border-color:var(--accent);background:#111827}
+  .note-input::placeholder{color:#334155}
+  .note-cell{min-width:130px}
+  .log-box{margin-top:14px;padding:10px;border-radius:8px;background:#111827;border:1px solid #1e293b;max-height:150px;overflow-y:auto;font-size:10px}
+  .log-title{font-weight:700;margin-bottom:4px;color:#475569;letter-spacing:.1em}
+  .log-ok{color:#22c55e}.log-err{color:#ef4444}.log-info{color:#94a3b8}
+  .footer{font-size:9px;color:#475569;margin-top:12px;line-height:1.5}
+  .footer a{color:#3b82f6}
+  .doc-link{font-size:10px;color:#3b82f6;text-decoration:none}
+  .doc-link:hover{text-decoration:underline}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:#0a0f1a}::-webkit-scrollbar-thumb{background:#334155;border-radius:3px}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div>
+      <h1>UTAH TAX SALE TRACKER 2026</h1>
+      <div class="subtitle">IRON • WASHINGTON • KANE • DUCHESNE COUNTY &nbsp;•&nbsp;<span id="lastUpdated"></span></div>
+    </div>
+    <div id="authBar" style="display:none;align-items:center;gap:10px;font-size:11px;flex-shrink:0">
+      <span style="color:#64748b">Logged in as <span id="userInfo" style="color:#22c55e;font-weight:600"></span></span>
+      <button onclick="fetch('/api/logout').then(()=>{document.cookie='session=;path=/;max-age=0';location.reload();})" style="padding:5px 12px;border-radius:4px;border:1px solid #334155;background:transparent;color:#94a3b8;font-family:inherit;font-size:10px;cursor:pointer">LOGOUT</button>
+    </div>
+  </div>
+
+  <div class="county-tabs">
+    <div class="county-tab active" onclick="switchCounty('iron')" id="tab-iron">IRON COUNTY</div>
+    <div class="county-tab" onclick="switchCounty('washington')" id="tab-washington">WASHINGTON COUNTY</div>
+    <div class="county-tab" onclick="switchCounty('kane')" id="tab-kane">KANE COUNTY</div>
+    <div class="county-tab" onclick="switchCounty('duchesne')" id="tab-duchesne">DUCHESNE COUNTY</div>
+  </div>
+
+  <!-- Info bar -->
+  <div id="infoBar" style="display:flex;gap:16px;margin-bottom:12px;flex-wrap:wrap;align-items:center;font-size:11px">
+    <div id="auctionInfo" style="background:#111827;border:1px solid #1e293b;border-radius:6px;padding:8px 14px">
+      <span style="color:#64748b">AUCTION:</span> <span id="auctionDate" style="color:#f97316;font-weight:700"></span>
+      <span id="auctionVenue" style="color:#64748b;margin-left:6px"></span>
+    </div>
+    <div id="downloadLinks" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+  </div>
+
+  <!-- Update bar -->
+  <div class="update-bar">
+    <textarea id="pasteArea" placeholder="Paste the full tax sale document here (Ctrl+A → Ctrl+C from the source doc)..."></textarea>
+    <div class="update-actions">
+      <button class="btn btn-green" onclick="parseInput()">PARSE &amp; UPDATE</button>
+      <a id="docLink" href="#" target="_blank" class="doc-link">Open source doc ↗</a>
+    </div>
+  </div>
+  <div id="parseResult" style="display:none"></div>
+
+  <!-- Summary + Controls -->
+  <div class="summary-cards" id="summaryCards"></div>
+  <div class="controls">
+    <button id="btnRun" class="btn btn-accent" onclick="runLookup()">FETCH COORDINATES</button>
+    <button id="btnGPX" class="btn btn-outline btn-orange" onclick="downloadGPX()" style="display:none">↓ GPX (onX)</button>
+    <button id="btnCSV" class="btn btn-outline btn-blue" onclick="downloadCSV()" style="display:none">↓ CSV (Google)</button>
+    <button id="btnKML" class="btn btn-outline btn-purple" onclick="downloadKML()" style="display:none">↓ KML (Earth)</button>
+    <span id="countBadge" style="font-size:11px;color:#22c55e;font-weight:600"></span>
+  </div>
+  <div id="progressWrap" style="display:none">
+    <div class="stats"><span id="progressText"></span><span id="foundText" style="color:#22c55e"></span></div>
+    <div class="progress-bar"><div id="progressFill" class="progress-fill" style="width:0%"></div></div>
+  </div>
+
+  <!-- Toolbar + Table -->
+  <div class="toolbar">
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#dc2626"></div>20+</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ea580c"></div>10-20</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ca8a04"></div>5-10</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#16a34a"></div>1-5</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#475569"></div>&lt;1</div>
+      <div class="legend-item" style="margin-left:8px"><div class="legend-dot" style="background:#7f1d1d;border:1px solid #ef4444"></div>Redeemed</div>
+    </div>
+    <div class="filter-bar">
+      <select id="filterAcres" onchange="renderTable()">
+        <option value="0">All sizes</option><option value="1">1+ ac</option><option value="5">5+ ac</option><option value="10">10+ ac</option><option value="20">20+ ac</option>
+      </select>
+      <select id="filterStatus" onchange="renderTable()">
+        <option value="all">All properties</option><option value="active">Active only</option><option value="redeemed">Redeemed only</option>
+      </select>
+    </div>
+  </div>
+  <div class="table-wrap" style="max-height:55vh;overflow-y:auto">
+    <table><thead><tr>
+      <th onclick="sortBy('sale')">#</th><th onclick="sortBy('owner')">Owner</th><th onclick="sortBy('parcel')">Parcel</th>
+      <th onclick="sortBy('acres')">Acres ▼</th><th onclick="sortBy('due')">Due</th>
+      <th>Lat</th><th>Lon</th><th onclick="sortBy('active')">Status</th><th onclick="sortBy('notes')">Notes</th><th></th>
+    </tr></thead><tbody id="tableBody"></tbody></table>
+  </div>
+  <div id="logBox" class="log-box" style="display:none"><div class="log-title">QUERY LOG</div><div id="logContent"></div></div>
+
+  <p class="footer">Coords: Utah SGID via services1.arcgis.com • Data synced to server across all devices</p>
+</div>
+
+<script>
+// ===== COUNTY CONFIG =====
+const COUNTIES = {
+  iron: {
+    name: "Iron County",
+    accent: "#b91c1c",
+    auctionDate: "May 28, 2026 at 10:00 AM MDT",
+    auctionVenue: "Online via publicsurplus.com",
+    docUrl: "https://ironcountyut-my.sharepoint.com/:w:/g/personal/ironits_ironcounty_net/IQCowShqsNTEQ4EAItFRGYbBAeOOLYN0MsLra_1qTZYpXpo?e=TgNTTP",
+    downloadLinks: [
+      {label:"Property List (Word)", url:"https://ironcountyut-my.sharepoint.com/:w:/g/personal/ironits_ironcounty_net/IQCowShqsNTEQ4EAItFRGYbBAeOOLYN0MsLra_1qTZYpXpo?e=TgNTTP"},
+      {label:"Tax Sale Page", url:"https://ironcountyut.gov/auditor/tax-sale"},
+      {label:"GIS Map", url:"https://gis.ironcounty.net/portal/apps/experiencebuilder/experience/?id=c845f90f04b64fe0b2d37e6673106612"},
+      {label:"Register to Bid", url:"https://www.publicsurplus.com"},
+    ],
+    parcelServices: [
+      {name:"Parcels_Iron",label:"Basic"},
+      {name:"Parcels_Iron_LIR",label:"LIR"},
+    ],
+    initialData: [
+{sale:1,acct:"0255221",owner:"LAMBETH KEVIN L/JULIE J/T",parcel:"A-0878-0009-0008",acres:0.52,due:7871.62},
+{sale:2,acct:"0032489",owner:"DAUGHERTY FAMILY REV TRUST",parcel:"A-1148-0001-0003-228",acres:0.0,due:13301.49},
+{sale:3,acct:"0086188",owner:"ROBB JAMES SAMUEL",parcel:"C-0162-0002-0000",acres:20.00,due:1020.56},
+{sale:4,acct:"0091550",owner:"RODMAN GILBERT T III",parcel:"C-0638-0108-0000",acres:0.71,due:2166.10},
+{sale:5,acct:"0119559",owner:"QUINONES EDDIE",parcel:"D-0456-0048-0000",acres:1.25,due:1412.58},
+{sale:6,acct:"0122892",owner:"MERWIN FAMILY TRUST",parcel:"D-0456-0375-0000",acres:2.50,due:2269.31},
+{sale:7,acct:"0129251",owner:"SHULTS JAMES R",parcel:"D-0456-0958-0000",acres:1.20,due:1582.76},
+{sale:8,acct:"0131455",owner:"BRINTON ROBERT/VIVIAN",parcel:"D-0492-0006-0000",acres:0.54,due:664.11},
+{sale:9,acct:"0155819",owner:"ELLSWORTH KENTON",parcel:"E-0474-0001-0006",acres:10.00,due:919.05},
+{sale:10,acct:"0160488",owner:"STARK JOHN",parcel:"E-0737-0007-0000",acres:0.99,due:613.94},
+{sale:11,acct:"0262219",owner:"SPALDING BONNIE A",parcel:"E-0737-0074-0000",acres:2.14,due:689.83},
+{sale:12,acct:"0164084",owner:"BOSECK RICHARD/VIRGINIA",parcel:"E-0868-0001-0000",acres:0.89,due:613.14},
+{sale:13,acct:"0346822",owner:"MORALES ENRIQUE O",parcel:"E-0929-0011-0000",acres:20.00,due:1247.81},
+{sale:14,acct:"0166519",owner:"ASHTON DEVELOPMENT INC",parcel:"E-1004-0017-0000",acres:2.25,due:633.59},
+{sale:15,acct:"0171634",owner:"PRITCHARD BETTY/DAWSON LOIS",parcel:"E-1229-0003-0023",acres:0.33,due:673.64},
+{sale:16,acct:"0172236",owner:"WILSON MELVIN A",parcel:"E-1229-0003-0119",acres:0.16,due:614.75},
+{sale:17,acct:"0173234",owner:"MC KEEN WILLIAM R",parcel:"E-1229-0003-0216",acres:0.16,due:614.75},
+{sale:18,acct:"0173960",owner:"MIKES DAVID",parcel:"E-1229-0003-0250",acres:0.33,due:673.64},
+{sale:19,acct:"0174455",owner:"MC KENNA CARROLL",parcel:"E-1229-0003-0317",acres:0.17,due:614.75},
+{sale:20,acct:"0175700",owner:"CLUFF C BRUCE/MARY LOU",parcel:"E-1229-0003-0384",acres:0.16,due:614.75},
+{sale:21,acct:"0176823",owner:"CLOWAR ROBERT J",parcel:"E-1229-0003-0501",acres:0.16,due:614.75},
+{sale:22,acct:"0177466",owner:"GAFFNEY KENNETH J",parcel:"E-1229-0003-0560",acres:0.32,due:673.64},
+{sale:23,acct:"0251402",owner:"SWEET KAZUKO/JACKSON K",parcel:"E-1229-0003-0602",acres:0.48,due:732.54},
+{sale:24,acct:"0268620",owner:"LEE ROBERT E/SHIRLEY S",parcel:"E-1229-0003-0614",acres:0.33,due:673.64},
+{sale:25,acct:"0371358",owner:"FIX SHARON",parcel:"E-1229-0003-0746-10",acres:0.16,due:614.75},
+{sale:26,acct:"0415460",owner:"KMM COMPANY",parcel:"E-1229-0003-0862-10",acres:0.16,due:614.75},
+{sale:27,acct:"0409653",owner:"NELSON TIMOTHY",parcel:"E-1229-0003-0864",acres:0.32,due:673.64},
+{sale:28,acct:"0414653",owner:"HERNANDEZ ALEJANDRO",parcel:"E-1229-0003-0874-01",acres:0.32,due:673.64},
+{sale:29,acct:"0414695",owner:"HERNANDEZ ALEJANDRO",parcel:"E-1229-0003-0874-05",acres:0.32,due:673.64},
+{sale:30,acct:"0492815",owner:"BRISSETTE ROBERT",parcel:"E-1229-0311-0000",acres:0.16,due:569.75},
+{sale:31,acct:"0492816",owner:"BRISSETTE ROBERT",parcel:"E-1229-0312-0000",acres:0.16,due:614.75},
+{sale:32,acct:"0493576",owner:"ULUINABOU DEREK",parcel:"E-1229-0362-0000",acres:0.15,due:673.64},
+{sale:33,acct:"0493680",owner:"VENTER WILLEM et al",parcel:"E-1229-0364-0000",acres:0.15,due:673.64},
+{sale:34,acct:"0177953",owner:"UNGER KEITH",parcel:"E-1258-0003-0000",acres:10.00,due:901.83},
+{sale:35,acct:"0181583",owner:"GONZALES ALFRED JR",parcel:"E-1315-0004-0001-01",acres:0.50,due:624.01},
+{sale:36,acct:"0184553",owner:"VAIL CATHERINE",parcel:"E-1372-0141-0000",acres:2.27,due:702.13},
+{sale:37,acct:"0185303",owner:"GONZALEZ MANUEL",parcel:"E-1373-0008-0000",acres:2.27,due:702.13},
+{sale:38,acct:"0187796",owner:"TATE TRUST",parcel:"E-1388-0043-0000",acres:1.86,due:675.70},
+{sale:39,acct:"0189891",owner:"NUUHIWA MAUREEN",parcel:"E-1390-0055-0000",acres:4.06,due:817.54},
+{sale:40,acct:"0191244",owner:"BRICE JOSEPH H",parcel:"E-1390-0143-0000",acres:3.93,due:809.18},
+{sale:41,acct:"0190972",owner:"KOETHE JOHN L",parcel:"E-1390-0153-0000",acres:2.27,due:702.13},
+{sale:42,acct:"0196045",owner:"HOLTMAN LEO M",parcel:"E-1409-0007-0011",acres:0.55,due:591.28},
+{sale:43,acct:"0196243",owner:"MILLIGAN RICHARD REV TRUST",parcel:"E-1409-0007-0021",acres:0.55,due:591.28},
+{sale:44,acct:"0199585",owner:"STEIN JEAN HALEY",parcel:"E-1562-0018-0000",acres:8.68,due:1115.41},
+{sale:45,acct:"0272754",owner:"NARWANI L M",parcel:"E-1601-0048-0039",acres:2.34,due:706.64},
+{sale:46,acct:"0205424",owner:"MILLS BONNIE E",parcel:"E-1601-0065-0000",acres:1.17,due:520.21},
+{sale:47,acct:"0396348",owner:"GARCIA ALBERT/MELISSA",parcel:"E-1618-0015-0001-02",acres:20.00,due:1248.81},
+{sale:48,acct:"0278876",owner:"OLSON RHONDA LEE",parcel:"E-1687-0005-0005-113",acres:1.11,due:620.08},
+{sale:49,acct:"0210911",owner:"RICE WILLIAM R et al",parcel:"E-1690-0001-0002",acres:40.00,due:1482.02},
+{sale:50,acct:"0420080",owner:"GUTTERMAN JASON",parcel:"E-1694-0006-0013",acres:1.13,due:612.34},
+{sale:51,acct:"0332806",owner:"OLSON RHONDA LEE",parcel:"E-1694-0008-0001-10",acres:1.13,due:612.34},
+{sale:52,acct:"0295771",owner:"CEBRYNSKI CASMIR",parcel:"E-1694-0010-0002-34",acres:3.30,due:747.28},
+{sale:53,acct:"0303294",owner:"WALTERS JOSEPH D",parcel:"E-1695-0013-0043",acres:1.14,due:621.89},
+{sale:54,acct:"0211737",owner:"STEVENS/CHOATE",parcel:"E-1699-0004-0000",acres:1.09,due:619.01},
+{sale:55,acct:"0302379",owner:"SCHNEIDER KURT",parcel:"E-1699-0005-0005",acres:1.14,due:621.89},
+{sale:56,acct:"0312725",owner:"JONES ARTHUR G",parcel:"E-1699-0012-0001",acres:1.10,due:619.61},
+{sale:57,acct:"0492129",owner:"JONES ARTHUR G",parcel:"E-1699-0024-0000",acres:1.10,due:619.61},
+{sale:58,acct:"0492843",owner:"PUGH CW SHAWN",parcel:"E-1700-0027-0038-0R1",acres:1.14,due:621.89},
+{sale:59,acct:"0492372",owner:"JONES ARTHUR G",parcel:"E-1700-0033-0000",acres:1.11,due:620.08},
+{sale:60,acct:"0492439",owner:"FDM TOOLS INC",parcel:"E-1701-0061-00R1",acres:1.14,due:621.89},
+{sale:61,acct:"0497356",owner:"BRESHEARS/LOVELL",parcel:"E-1701-0117-0000",acres:1.085,due:624.51},
+{sale:62,acct:"0497400",owner:"REY JOAN",parcel:"E-1701-0121-0000",acres:1.09,due:624.84},
+{sale:63,acct:"0252848",owner:"SVOBODA JOHN",parcel:"E-1702-0003-0030-09",acres:1.16,due:623.03},
+{sale:64,acct:"0334315",owner:"SIGMAN WILLIAM F",parcel:"E-1702-0003-0034-43",acres:1.04,due:616.04},
+{sale:65,acct:"0213774",owner:"BROWN GLENDOL L",parcel:"E-1707-0138-0000",acres:2.06,due:688.58},
+{sale:66,acct:"0215977",owner:"POST DENNIS B",parcel:"E-1708-0162-0000",acres:2.07,due:689.23},
+{sale:67,acct:"0216983",owner:"SUGAJSKI FRANK P",parcel:"E-1709-0058-0000",acres:2.27,due:685.70},
+{sale:68,acct:"0217486",owner:"FROEHLICH RAYMOND",parcel:"E-1709-0104-0000",acres:2.27,due:702.13},
+{sale:69,acct:"0219748",owner:"DEGRAFF JOHN",parcel:"E-1714-0062-0000",acres:2.27,due:702.13},
+{sale:70,acct:"0220258",owner:"BARKER SALLY I",parcel:"E-1714-0133-0000",acres:2.07,due:689.23},
+{sale:71,acct:"0223203",owner:"OMANA MARTIN",parcel:"E-1733-0005-0000",acres:5.00,due:878.18},
+{sale:72,acct:"0223476",owner:"SHINE JERRY",parcel:"E-1733-0044-0000",acres:5.06,due:881.99},
+{sale:73,acct:"0226529",owner:"HANNA PHILIP G",parcel:"E-1743-0005-0005",acres:5.00,due:728.78},
+{sale:74,acct:"0243250",owner:"ROBBINS JAMES R",parcel:"E-1769-0001-0017",acres:5.14,due:932.92},
+{sale:75,acct:"0444676",owner:"MELI/STEWART",parcel:"E-1776-0001-0012",acres:20.00,due:1894.86},
+{sale:76,acct:"0226248",owner:"DE ANGELIS RICH",parcel:"E-1859-0006-0001-022",acres:2.50,due:642.26},
+    ],
+  },
+  washington: {
+    name: "Washington County",
+    accent: "#1d4ed8",
+    auctionDate: "May 2026 (TBD)",
+    auctionVenue: "Via publicsurplus.com",
+    docUrl: "https://www.washco.utah.gov/departments/auditor/tax-sale/",
+    downloadLinks: [
+      {label:"Tax Sale Info", url:"https://www.washco.utah.gov/departments/auditor/tax-sale/"},
+      {label:"County Parcels", url:"https://parcels.utah.gov"},
+    ],
+    parcelServices: [
+      {name:"Parcels_Washington",label:"Basic"},
+      {name:"Parcels_Washington_LIR",label:"LIR"},
+    ],
+    initialData: [],
+  },
+  kane: {
+    name: "Kane County",
+    accent: "#15803d",
+    auctionDate: "May 28, 2026 at 10:00 AM",
+    auctionVenue: "Kane County Court House, 76 N Main, Kanab",
+    docUrl: "https://kane.utah.gov/DocumentCenter/View/1176/2026-Tax-Sale-Listing",
+    downloadLinks: [
+      {label:"2026 Tax Sale List (PDF)", url:"https://kane.utah.gov/DocumentCenter/View/1176/2026-Tax-Sale-Listing"},
+      {label:"Tax Policies", url:"https://kane.utah.gov/206/Tax-Policies"},
+      {label:"County Parcels", url:"https://parcels.utah.gov"},
+    ],
+    parcelServices: [
+      {name:"Parcels_Kane",label:"Basic"},
+      {name:"Parcels_Kane_LIR",label:"LIR"},
+    ],
+    initialData: [],
+  },
+  duchesne: {
+    name: "Duchesne County",
+    accent: "#7c3aed",
+    auctionDate: "May 28, 2026 (4th Thursday)",
+    auctionVenue: "Online via publicsurplus.com",
+    docUrl: "https://duchesne.utah.gov/gov/elected-officials/clerk-auditor/delinquent-tax/",
+    downloadLinks: [
+      {label:"Tax Sale Info & Listing", url:"https://duchesne.utah.gov/gov/elected-officials/clerk-auditor/delinquent-tax/"},
+      {label:"Register to Bid", url:"https://www.publicsurplus.com"},
+      {label:"County Parcels", url:"https://parcels.utah.gov"},
+    ],
+    parcelServices: [
+      {name:"Parcels_Duchesne",label:"Basic"},
+      {name:"Parcels_Duchesne_LIR",label:"LIR"},
+    ],
+    initialData: [],
+  },
+};
+
+// ===== STATE =====
+let currentCounty = "iron";
+let countyData = {}; // {iron: {parcels, coordCache, notes}, ...}
+let sortField = "acres", sortDir = -1, isRunning = false;
+
+function cur() { return countyData[currentCounty]; }
+function cfg() { return COUNTIES[currentCounty]; }
+
+// ===== COUNTY SWITCHING =====
+async function switchCounty(county) {
+  if (isRunning) return;
+  currentCounty = county;
+  document.querySelectorAll('.county-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + county).classList.add('active');
+  document.documentElement.style.setProperty('--accent', cfg().accent);
+  document.getElementById('tab-' + county).style.background = cfg().accent;
+
+  // Update doc link
+  const link = document.getElementById('docLink');
+  if (cfg().docUrl) { link.href = cfg().docUrl; link.textContent = `Open ${cfg().name} doc ↗`; link.style.display = ''; }
+  else { link.style.display = 'none'; }
+
+  // Auction info
+  document.getElementById('auctionDate').textContent = cfg().auctionDate || 'TBD';
+  document.getElementById('auctionVenue').textContent = cfg().auctionVenue ? `• ${cfg().auctionVenue}` : '';
+
+  // Download links
+  const dlDiv = document.getElementById('downloadLinks');
+  dlDiv.innerHTML = (cfg().downloadLinks || []).map(l =>
+    `<a href="${l.url}" target="_blank" style="color:${cfg().accent};font-size:10px;text-decoration:none;border:1px solid ${cfg().accent};border-radius:4px;padding:4px 10px;font-family:inherit;font-weight:600">${l.label} ↗</a>`
+  ).join('');
+
+  // Load data if not cached
+  if (!countyData[county]) await loadCounty(county);
+
+  document.getElementById('pasteArea').value = '';
+  document.getElementById('parseResult').style.display = 'none';
+  document.getElementById('progressWrap').style.display = 'none';
+  document.getElementById('logBox').style.display = 'none';
+  renderTable(); renderSummary();
+}
+
+// ===== PERSISTENCE =====
+async function loadCounty(county) {
+  try {
+    const r = await fetch(`/api/data/${county}`);
+    if (r.ok) {
+      const d = await r.json();
+      if (d.parcels && d.parcels.length > 0) {
+        countyData[county] = { parcels: d.parcels, coordCache: d.coordCache || {}, notes: d.notes || {} };
+        if (d.updated) document.getElementById("lastUpdated").textContent = `Updated: ${new Date(d.updated).toLocaleString()}`;
+        return;
+      }
+    }
+  } catch {}
+  // Fall back to initial data
+  const init = COUNTIES[county].initialData;
+  countyData[county] = {
+    parcels: init.map(p => ({ ...p, lat: null, lon: null, status: "pending", match: "", active: true, redeemedDate: null })),
+    coordCache: {},
+    notes: {},
+  };
+}
+
+function saveCounty() {
+  const d = cur();
+  fetch(`/api/data/${currentCounty}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ parcels: d.parcels, coordCache: d.coordCache, notes: d.notes, updated: new Date().toISOString() })
+  }).catch(() => {});
+}
+
+// ===== PARSER =====
+function parseInput() {
+  const text = document.getElementById("pasteArea").value.trim();
+  if (!text) { showPR("Paste the document text first.", "err"); return; }
+
+  let found = [];
+  let m;
+
+  // Format 1: Iron County / standard Utah format
+  // "Tax Sale # N ACCOUNT OWNER ... Parcel: PARCEL_ID ... Acres: N.N ... Total Due: $N,NNN.NN"
+  const rxIron = /Tax Sale\s*#\s*(\d+)\s+(\d+)\s+(.+?)(?:Parcel|PARCEL):\s*([\w\-]+)\s+(.+?)Acres:\s*([\d.]+)\s+.*?Total Due:\s*\$?([\d,]+\.?\d*)/gs;
+  while ((m = rxIron.exec(text)) !== null) found.push({ sale: parseInt(m[1]), acct: m[2].trim(), owner: m[3].trim().split("\n")[0].trim().substring(0, 60), parcel: m[4].trim(), acres: parseFloat(m[6]), due: parseFloat(m[7].replace(/,/g, "")) });
+
+  // Format 2: Kane County tabular format
+  // "SALE# ACCOUNT PARCEL DISTRICT $AMOUNT"
+  if (found.length === 0) {
+    const lines = text.split(/\n/);
+    for (const line of lines) {
+      const km = line.trim().match(/^(\d{1,3})\s+(0\d{5,7})\s+([\w\-]+)\s+(\d{1,3})\s+\$?([\d,]+\.?\d*)/);
+      if (km) {
+        found.push({
+          sale: parseInt(km[1]),
+          acct: km[2].trim(),
+          owner: `Acct ${km[2].trim()} (Dist ${km[4]})`,
+          parcel: km[3].trim(),
+          acres: 0,
+          due: parseFloat(km[5].replace(/,/g, "")),
+          district: parseInt(km[4]),
+        });
+      }
+    }
+    if (found.length > 0) showPR(`Detected <b>Kane County format</b> (${found.length} entries). No owner/acreage data in this format — add details via notes.`, "ok");
+  }
+
+  // Format 3: Duchesne County multi-line block format
+  // "LOCAL_ID / SGID_ID\n\nOWNER\n\nADDRESS\n\nCITY, ST ZIP\n\nTotal Due $AMOUNT\n\nLEGAL N.NN AC"
+  if (found.length === 0) {
+    // Match blocks: parcel IDs / SGID IDs, then Total Due, then legal with acreage
+    const blockRx = /([\w\-\/\.\s&]+?)\s*\/\s*([\d\-]+)(?:\s+(?:and|AND|&)\s+[\w\-\/\.\s]+?\/\s*([\d\-]+))?\s*(\(REDEEMED[^)]*\))?\s*\n\s*\n\s*(.+?)(?:\n\s*\n\s*.+?)*?\n\s*\n\s*Total Due:?\s+\$?([\d,]+\.?\d*)\s*\n\s*\n\s*(.*?)\s+([\d.]+)\s*(?:AC(?:RES)?|ac)/g;
+    let saleNum = 0;
+    while ((m = blockRx.exec(text)) !== null) {
+      saleNum++;
+      const localId = m[1].trim();
+      const sgidId = m[2].trim(); // This matches SGID format like 00-0000-5441
+      const sgidId2 = m[3] ? m[3].trim() : "";
+      const redeemed = m[4] ? true : false;
+      const redeemedNote = m[4] || "";
+      const owner = m[5].trim().substring(0, 60);
+      const due = parseFloat(m[6].replace(/,/g, ""));
+      const legal = m[7].trim().substring(0, 150);
+      const acres = parseFloat(m[8]);
+
+      found.push({
+        sale: saleNum,
+        acct: sgidId,       // SGID parcel ID for coordinate lookup
+        owner: owner,
+        parcel: sgidId,     // Use SGID ID as primary parcel (matches database)
+        localParcel: localId, // Keep local ID for reference
+        acres: acres,
+        due: due,
+        legal: legal,
+        active: !redeemed,
+        redeemedDate: redeemed ? redeemedNote.replace(/[()]/g, "") : null,
+      });
+    }
+
+    // Fallback: simpler line-by-line scan for Duchesne
+    if (found.length === 0) {
+      const lines = text.split(/\n/);
+      for (let i = 0; i < lines.length; i++) {
+        const idMatch = lines[i].match(/^([\w\-\.\/]+)\s*\/\s*([\d][\d\-]+)/);
+        if (idMatch) {
+          const localId = idMatch[1].trim();
+          const sgidId = idMatch[2].trim();
+          const redeemed = lines[i].includes("REDEEMED");
+          // Scan forward for Total Due and acreage
+          let owner = "", due = 0, legal = "", acres = 0;
+          for (let j = i + 1; j < Math.min(i + 15, lines.length); j++) {
+            const duMatch = lines[j].match(/Total Due:?\s+\$?([\d,]+\.?\d*)/);
+            if (duMatch) due = parseFloat(duMatch[1].replace(/,/g, ""));
+            const acMatch = lines[j].match(/([\d.]+)\s*(?:AC(?:RES)?|ac)\s*$/);
+            if (acMatch) { acres = parseFloat(acMatch[1]); legal = lines[j].replace(acMatch[0], "").trim(); }
+            if (!owner && j === i + 2 && lines[j].trim() && !lines[j].match(/^\d|^PO |^Total/i)) owner = lines[j].trim();
+          }
+          saleNum++;
+          found.push({
+            sale: saleNum, acct: sgidId, owner: owner.substring(0, 60),
+            parcel: sgidId, localParcel: localId, acres, due, legal,
+            active: !redeemed, redeemedDate: redeemed ? "Redeemed" : null,
+          });
+        }
+      }
+    }
+
+    if (found.length > 0) {
+      const redeemed = found.filter(f => !f.active);
+      showPR(`Detected <b>Duchesne County format</b>: ${found.length} entries (${redeemed.length} already redeemed). SGID parcel IDs extracted for coordinate lookup.`, "ok");
+    }
+  }
+
+  // Format 4: Fallback — just detect sale numbers for redemption tracking
+  let saleNums;
+  if (found.length === 0) {
+    const srx = /Tax Sale\s*#?\s*(\d+)/gi;
+    saleNums = [];
+    // Also try plain number-at-start-of-line for Kane
+    const lines2 = text.split(/\n/);
+    for (const line of lines2) {
+      const nm = line.trim().match(/^(\d{1,3})\s+/);
+      if (nm && parseInt(nm[1]) > 0 && parseInt(nm[1]) < 200) saleNums.push(parseInt(nm[1]));
+    }
+    // Dedupe
+    saleNums = [...new Set(saleNums)];
+    if (saleNums.length === 0) {
+      while ((m = srx.exec(text)) !== null) saleNums.push(parseInt(m[1]));
+    }
+    if (saleNums.length === 0) { showPR("Could not parse any entries. Supported formats: Iron County (Word doc), Kane County (PDF table), Duchesne County, or any doc with 'Tax Sale #' entries.", "err"); return; }
+  }
+
+  const d = cur();
+  const activeSet = new Set(found.length > 0 ? found.map(f => f.sale) : saleNums);
+  const nowRedeemed = d.parcels.filter(p => p.active && !activeSet.has(p.sale));
+  d.parcels.forEach(p => { if (activeSet.has(p.sale)) { p.active = true; p.redeemedDate = null; } else if (p.active) { p.active = false; p.redeemedDate = new Date().toLocaleDateString(); } });
+  if (found.length > 0) {
+    const ex = new Set(d.parcels.map(p => p.sale));
+    found.forEach(f => { if (!ex.has(f.sale)) d.parcels.push({ ...f, lat: null, lon: null, status: "pending", match: "", active: f.active !== undefined ? f.active : true, redeemedDate: f.redeemedDate || null }); else { const e = d.parcels.find(p => p.sale === f.sale); if (e) e.due = f.due; } });
+  }
+  saveCounty(); renderTable(); renderSummary();
+  const active = d.parcels.filter(p => p.active);
+  let msg = `<b>${cfg().name}</b>: Parsed <b>${activeSet.size}</b> entries.<br><b>${active.length}</b> active • <b>${nowRedeemed.length}</b> newly redeemed`;
+  if (nowRedeemed.length > 0) msg += `<div style="margin-top:6px;font-size:11px;color:#fb923c">Redeemed: ${nowRedeemed.map(p => `#${p.sale} ${p.owner}`).join(", ")}</div>`;
+  showPR(msg, nowRedeemed.length > 0 ? "warn" : "ok");
+  document.getElementById("lastUpdated").textContent = `Updated: ${new Date().toLocaleString()}`;
+}
+function showPR(h, t) { const el = document.getElementById("parseResult"); el.innerHTML = h; el.className = "parse-msg " + (t === "ok" ? "parse-ok" : t === "warn" ? "parse-warn" : "parse-err"); el.style.display = "block"; }
+
+// ===== SUMMARY =====
+function renderSummary() {
+  const d = cur();
+  const a = d.parcels.filter(p => p.active), r = d.parcels.filter(p => !p.active), l = a.filter(p => p.lat && p.lon);
+  document.getElementById("summaryCards").innerHTML = `
+    <div class="summary-card"><div class="summary-num" style="color:#22c55e">${a.length}</div><div class="summary-label">ACTIVE</div></div>
+    <div class="summary-card"><div class="summary-num" style="color:#ef4444">${r.length}</div><div class="summary-label">REDEEMED</div></div>
+    <div class="summary-card"><div class="summary-num" style="color:#a855f7">${l.length}</div><div class="summary-label">LOCATED</div></div>`;
+  if (l.length > 0) ["btnGPX", "btnCSV", "btnKML"].forEach(id => document.getElementById(id).style.display = "inline-block");
+  else ["btnGPX", "btnCSV", "btnKML"].forEach(id => document.getElementById(id).style.display = "none");
+}
+
+// ===== TABLE =====
+function sC(a) { return a >= 20 ? "#dc2626" : a >= 10 ? "#ea580c" : a >= 5 ? "#ca8a04" : a >= 1 ? "#16a34a" : "#475569" }
+function sT(a) { return a >= 20 ? "20plus" : a >= 10 ? "10-20" : a >= 5 ? "5-10" : "1-5" }
+function sortBy(f) { if (sortField === f) sortDir *= -1; else { sortField = f; sortDir = f === "acres" || f === "due" ? -1 : f === "active" ? 1 : 1; } renderTable(); }
+function saveNote(p, v) { cur().notes[p] = v; saveCounty(); }
+
+function renderTable() {
+  const d = cur();
+  const minA = parseFloat(document.getElementById("filterAcres")?.value || "0") || 0;
+  const sf = document.getElementById("filterStatus")?.value || "all";
+  let list = d.parcels.filter(p => { if (minA > 0 && p.acres < minA) return false; if (sf === "active" && !p.active) return false; if (sf === "redeemed" && p.active) return false; return true; });
+  list.sort((a, b) => { if (sortField === "notes") return sortDir * (d.notes[a.parcel] || "").localeCompare(d.notes[b.parcel] || ""); if (sortField === "active") return sortDir * ((a.active ? 1 : 0) - (b.active ? 1 : 0)); let va = a[sortField], vb = b[sortField]; return typeof va === "string" ? sortDir * va.localeCompare(vb) : sortDir * (va - vb); });
+  document.getElementById("tableBody").innerHTML = list.map(r => {
+    const c = r.active ? sC(r.acres) : "#ef4444", cls = r.active ? "row-active" : "row-redeemed";
+    const rd = r.redeemedDate ? `<span class="redeemed-date">${r.redeemedDate}</span>` : "";
+    const statusHTML = r.active ? '<span style="color:#22c55e;font-size:9px;font-weight:700;letter-spacing:.05em">ACTIVE</span>' : `<span class="redeemed-tag">REDEEMED</span>${rd}`;
+    const mapLink = r.lat ? `<a class="map-link" href="https://www.google.com/maps?q=${r.lat},${r.lon}" target="_blank">MAP ↗</a>` : "";
+    const nv = (d.notes[r.parcel] || "").replace(/"/g, "&quot;");
+    const parcelDisplay = r.localParcel ? `<span title="${r.parcel}">${r.localParcel}</span><br><span style="font-size:8px;color:#475569">${r.parcel}</span>` : r.parcel;
+    return `<tr class="${cls}"><td style="color:${c};font-weight:700">${r.sale}</td><td class="ellipsis" title="${r.owner}">${r.owner}</td><td class="mono">${parcelDisplay}</td><td style="color:${c};font-weight:600">${r.acres > 0 ? r.acres : '—'}</td><td>$${r.due.toLocaleString()}</td><td style="color:${r.lat ? '#22c55e' : '#475569'};font-size:10px">${r.lat ? r.lat.toFixed(6) : '—'}</td><td style="color:${r.lon ? '#22c55e' : '#475569'};font-size:10px">${r.lon ? r.lon.toFixed(6) : '—'}</td><td>${statusHTML}</td><td class="note-cell"><input class="note-input" type="text" placeholder="Add note..." value="${nv}" onchange="saveNote('${r.parcel}',this.value)"/></td><td>${r.status === "searching" ? '<span class="searching">⟳</span>' : mapLink}</td></tr>`;
+  }).join("");
+}
+
+// ===== COORDS =====
+const BASE = "https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services";
+function gC(g) { if (!g) return null; if (g.x != null && g.y != null) return { lat: g.y, lon: g.x }; if (g.rings) { let sx = 0, sy = 0, n = 0; for (const r of g.rings) for (const [x, y] of r) { sx += x; sy += y; n++; } if (n) return { lat: sy / n, lon: sx / n }; } return null; }
+async function qS(svc, pid) {
+  const u = `${BASE}/${svc.name}/FeatureServer/0/query`;
+  const acreFields = "PARCEL_ID,ACRES,ACREAGE,Total_Acres,GIS_Acres,Shape__Area";
+  async function tryQuery(where, label) {
+    try {
+      const r = await fetch(`${u}?${new URLSearchParams({ where, outFields: acreFields, returnGeometry: "true", outSR: "4326", f: "json", resultRecordCount: "10" })}`);
+      const d = await r.json();
+      if (d.features?.length > 0) {
+        const best = d.features.find(f => f.attributes.PARCEL_ID === pid) || d.features[0];
+        const c = gC(best.geometry);
+        if (c) {
+          // Try all possible acre fields
+          const a = best.attributes;
+          const acres = a.ACRES || a.ACREAGE || a.Total_Acres || a.GIS_Acres || (a.Shape__Area ? a.Shape__Area / 4046.86 : 0);
+          return { ...c, match: label, acres: acres ? parseFloat(acres.toFixed(2)) : 0 };
+        }
+      }
+    } catch {}
+    return null;
+  }
+  // Strategy 1: Exact match
+  let res = await tryQuery(`PARCEL_ID='${pid}'`, `${svc.label} exact`);
+  if (res) return res;
+  // Strategy 2: Without dashes
+  const noDash = pid.replace(/-/g, "");
+  res = await tryQuery(`PARCEL_ID='${noDash}'`, `${svc.label} no-dash`);
+  if (res) return res;
+  // Strategy 3: Zero-padded number variants (N-57 -> N-057, N-0057)
+  const segs = pid.split("-");
+  if (segs.length >= 2) {
+    const lastSeg = segs[segs.length - 1];
+    if (/^\d+$/.test(lastSeg)) {
+      for (const pad of [3, 4]) {
+        const padded = [...segs.slice(0, -1), lastSeg.padStart(pad, "0")].join("-");
+        if (padded !== pid) { res = await tryQuery(`PARCEL_ID='${padded}'`, `${svc.label} pad-${pad}`); if (res) return res; }
+      }
+    }
+  }
+  // Strategy 4: LIKE match on first segments
+  if (segs.length >= 2) {
+    const prefix = segs.slice(0, Math.min(3, segs.length)).join("-");
+    res = await tryQuery(`PARCEL_ID LIKE '${prefix}%'`, `${svc.label} ~${prefix}`);
+    if (res) return res;
+    const prefixNd = segs.slice(0, Math.min(3, segs.length)).join("");
+    res = await tryQuery(`PARCEL_ID LIKE '${prefixNd}%'`, `${svc.label} ~nd`);
+    if (res) return res;
+  }
+  // Strategy 5: Contains match (wildcard both sides)
+  res = await tryQuery(`PARCEL_ID LIKE '%${pid}%'`, `${svc.label} contains`);
+  if (res) return res;
+  // Strategy 6: First-segment prefix (N-57 -> find all N-% and match)
+  if (segs.length >= 2 && segs[0].length <= 3) {
+    res = await tryQuery(`PARCEL_ID LIKE '${segs[0]}-%'`, `${svc.label} prefix-${segs[0]}`);
+    // tryQuery returns first match, but we want best match — check if exact is in results
+    if (res) return res;
+  }
+  // Strategy 7: SERIAL_NUM (LIR only)
+  if (svc.name.includes("LIR")) {
+    try {
+      const r = await fetch(`${u}?${new URLSearchParams({ where: `SERIAL_NUM='${pid}'`, outFields: `PARCEL_ID,SERIAL_NUM,${acreFields}`, returnGeometry: "true", outSR: "4326", f: "json", resultRecordCount: "1" })}`);
+      const d = await r.json();
+      if (d.features?.length > 0) {
+        const c = gC(d.features[0].geometry);
+        const a = d.features[0].attributes;
+        const acres = a.ACRES || a.ACREAGE || a.Total_Acres || a.GIS_Acres || (a.Shape__Area ? a.Shape__Area / 4046.86 : 0);
+        if (c) return { ...c, match: `${svc.label} serial`, acres: acres ? parseFloat(acres.toFixed(2)) : 0 };
+      }
+    } catch {}
+  }
+  return null;
+}
+// Batch lookup: fetch all parcels by prefix, match client-side (ideal for Kane's short IDs)
+async function qBatch(svc, parcels) {
+  const u = `${BASE}/${svc.name}/FeatureServer/0/query`;
+  const isLIR = svc.name.includes("LIR");
+  const acreField = isLIR ? "PARCEL_ACRES" : "Shape__Area";
+  const outFields = isLIR ? "PARCEL_ID,SERIAL_NUM,PARCEL_ACRES,Shape__Area" : "PARCEL_ID,ACCOUNT_NUM,Shape__Area";
+  const results = {};
+
+  // Group parcels by their letter prefix (N, T, etc.)
+  const prefixes = {};
+  for (const p of parcels) {
+    const prefix = p.parcel.split("-")[0];
+    if (!prefixes[prefix]) prefixes[prefix] = [];
+    prefixes[prefix].push(p);
+  }
+
+  for (const [prefix, group] of Object.entries(prefixes)) {
+    addLog(`  Batch: fetching all ${prefix}-* parcels from ${svc.label}...`, "info");
+    let offset = 0;
+    let allFeatures = [];
+    // Paginate through results
+    while (true) {
+      try {
+        const r = await fetch(`${u}?${new URLSearchParams({
+          where: `PARCEL_ID LIKE '${prefix}-%'`,
+          outFields, returnGeometry: "true", outSR: "4326", f: "json",
+          resultRecordCount: "500", resultOffset: String(offset)
+        })}`);
+        const d = await r.json();
+        if (!d.features || d.features.length === 0) break;
+        allFeatures = allFeatures.concat(d.features);
+        if (d.features.length < 500) break;
+        offset += 500;
+      } catch { break; }
+    }
+    addLog(`  Batch: got ${allFeatures.length} ${prefix}-* parcels`, allFeatures.length > 0 ? "ok" : "err");
+
+    // Build lookup map
+    const byId = {};
+    const bySerial = {};
+    const byAcct = {};
+    for (const f of allFeatures) {
+      byId[f.attributes.PARCEL_ID] = f;
+      if (f.attributes.SERIAL_NUM) bySerial[f.attributes.SERIAL_NUM] = f;
+      if (f.attributes.ACCOUNT_NUM) byAcct[f.attributes.ACCOUNT_NUM] = f;
+    }
+
+    // Match each parcel in the group
+    for (const p of group) {
+      let feat = byId[p.parcel];
+      let matchType = "parcel";
+      if (!feat && p.acct) {
+        const acctClean = p.acct.replace(/^0+/, "");
+        feat = bySerial[p.acct] || bySerial[acctClean] || byAcct[p.acct] || byAcct[acctClean];
+        matchType = "acct";
+      }
+      if (feat) {
+        const c = gC(feat.geometry);
+        if (c) {
+          const a = feat.attributes;
+          const acres = a.PARCEL_ACRES || (a.Shape__Area ? parseFloat((a.Shape__Area / 4046.86).toFixed(2)) : 0);
+          results[p.parcel] = { ...c, match: `${svc.label} batch-${matchType}`, acres };
+        }
+      }
+    }
+  }
+
+  // Strategy 2: Batch by SERIAL_NUM / ACCOUNT_NUM for unfound parcels
+  const unfound = parcels.filter(p => !results[p.parcel]);
+  if (unfound.length > 0) {
+    // Build IN clause with all parcel IDs and account numbers
+    const allIds = [];
+    for (const p of unfound) {
+      allIds.push(p.parcel);
+      if (p.acct && p.acct !== p.parcel) allIds.push(p.acct);
+      // Also try without leading zeros
+      allIds.push(p.parcel.replace(/^0+/, ""));
+      if (p.acct) allIds.push(p.acct.replace(/^0+/, ""));
+    }
+    const uniqueIds = [...new Set(allIds)].filter(id => id.length > 0);
+
+    // Search in chunks of 50 to avoid query length limits
+    for (const field of ["SERIAL_NUM", "ACCOUNT_NUM"]) {
+      if (Object.keys(results).length >= parcels.length) break;
+      for (let i = 0; i < uniqueIds.length; i += 50) {
+        const chunk = uniqueIds.slice(i, i + 50);
+        const inClause = chunk.map(id => `'${id}'`).join(",");
+        addLog(`  Batch ${field}: searching ${chunk.length} IDs in ${svc.label}...`, "info");
+        try {
+          const r = await fetch(`${u}?${new URLSearchParams({
+            where: `${field} IN (${inClause})`,
+            outFields: isLIR ? "PARCEL_ID,SERIAL_NUM,PARCEL_ACRES,Shape__Area" : "PARCEL_ID,ACCOUNT_NUM,Shape__Area",
+            returnGeometry: "true", outSR: "4326", f: "json", resultRecordCount: "200"
+          })}`);
+          const d = await r.json();
+          if (d.features && d.features.length > 0) {
+            addLog(`  Batch ${field}: got ${d.features.length} matches`, "ok");
+            // Build reverse lookup
+            const byField = {};
+            for (const f of d.features) {
+              const val = f.attributes[field];
+              if (val) byField[String(val)] = f;
+            }
+            // Match back to our parcels
+            for (const p of unfound) {
+              if (results[p.parcel]) continue;
+              const feat = byField[p.parcel] || byField[p.acct] || byField[p.parcel.replace(/^0+/,"")] || byField[(p.acct||"").replace(/^0+/,"")];
+              if (feat) {
+                const c = gC(feat.geometry);
+                if (c) {
+                  const a = feat.attributes;
+                  const acres = a.PARCEL_ACRES || (a.Shape__Area ? parseFloat((a.Shape__Area / 4046.86).toFixed(2)) : 0);
+                  results[p.parcel] = { ...c, match: `${svc.label} batch-${field}`, acres };
+                }
+              }
+            }
+          }
+        } catch {}
+      }
+    }
+  }
+
+  return results;
+}
+async function qByAcct(svc, acct) {
+  const u = `${BASE}/${svc.name}/FeatureServer/0/query`;
+  const acreFields = "PARCEL_ID,ACRES,ACREAGE,Total_Acres,GIS_Acres,Shape__Area,SERIAL_NUM";
+  const fields = ["SERIAL_NUM", "ACCOUNT_NUM", "PARCEL_ID"];
+  for (const field of fields) {
+    const variants = [acct, acct.replace(/^0+/, "")];
+    for (const v of variants) {
+      try {
+        const r = await fetch(`${u}?${new URLSearchParams({ where: `${field}='${v}'`, outFields: acreFields, returnGeometry: "true", outSR: "4326", f: "json", resultRecordCount: "1" })}`);
+        const d = await r.json();
+        if (d.features?.length > 0) {
+          const c = gC(d.features[0].geometry);
+          const a = d.features[0].attributes;
+          const acres = a.ACRES || a.ACREAGE || a.Total_Acres || a.GIS_Acres || (a.Shape__Area ? a.Shape__Area / 4046.86 : 0);
+          if (c) return { ...c, match: `${svc.label} ${field}=${v}`, acres: acres ? parseFloat(acres.toFixed(2)) : 0 };
+        }
+      } catch {}
+    }
+  }
+  return null;
+}
+// Statewide fallback with acreage — also try account number
+async function qStatewide(pid, acct) {
+  const u = `${BASE}/Parcels_Utah/FeatureServer/0/query`;
+  const acreFields = "PARCEL_ID,ACRES,ACREAGE,Shape__Area";
+  // Try parcel ID variants
+  const variants = [pid, pid.replace(/-/g, "")];
+  for (const v of variants) {
+    try {
+      const r = await fetch(`${u}?${new URLSearchParams({ where: `PARCEL_ID='${v}'`, outFields: acreFields, returnGeometry: "true", outSR: "4326", f: "json", resultRecordCount: "1" })}`);
+      const d = await r.json();
+      if (d.features?.length > 0) {
+        const c = gC(d.features[0].geometry);
+        const a = d.features[0].attributes;
+        const acres = a.ACRES || a.ACREAGE || (a.Shape__Area ? a.Shape__Area / 4046.86 : 0);
+        if (c) return { ...c, match: `statewide parcel=${v}`, acres: acres ? parseFloat(acres.toFixed(2)) : 0 };
+      }
+    } catch {}
+  }
+  // Try account number against statewide (may be stored as PARCEL_ID)
+  if (acct) {
+    const acctVariants = [acct, acct.replace(/^0+/, "")];
+    for (const v of acctVariants) {
+      try {
+        const r = await fetch(`${u}?${new URLSearchParams({ where: `PARCEL_ID='${v}'`, outFields: acreFields, returnGeometry: "true", outSR: "4326", f: "json", resultRecordCount: "1" })}`);
+        const d = await r.json();
+        if (d.features?.length > 0) {
+          const c = gC(d.features[0].geometry);
+          const a = d.features[0].attributes;
+          const acres = a.ACRES || a.ACREAGE || (a.Shape__Area ? a.Shape__Area / 4046.86 : 0);
+          if (c) return { ...c, match: `statewide acct=${v}`, acres: acres ? parseFloat(acres.toFixed(2)) : 0 };
+        }
+      } catch {}
+    }
+  }
+  return null;
+}
+function addLog(msg, type) { document.getElementById("logContent").innerHTML += `<div class="log-${type || 'info'}">${msg}</div>`; document.getElementById("logBox").scrollTop = 99999; }
+
+async function runLookup() {
+  if (isRunning) return; isRunning = true;
+  const d = cur(), svcs = cfg().parcelServices;
+  const btn = document.getElementById("btnRun"); btn.disabled = true;
+  document.getElementById("progressWrap").style.display = "block";
+  document.getElementById("logBox").style.display = "block";
+  document.getElementById("logContent").innerHTML = "";
+  const active = d.parcels.filter(p => p.active); let sk = 0;
+  active.forEach(p => { if (d.coordCache[p.parcel]) { const cached = d.coordCache[p.parcel]; p.lat = cached.lat; p.lon = cached.lon; p.match = cached.match; p.status = "found"; if (cached.acres > 0 && (!p.acres || p.acres === 0)) p.acres = cached.acres; sk++; } });
+  if (sk) addLog(`${sk} cached`, "ok");
+  const toQ = active.filter(p => p.status !== "found"); let done = 0, found = sk;
+  addLog(`${cfg().name}: Querying ${toQ.length} parcels (6 strategies per parcel)...`, "info");
+  for (const svc of svcs) { try { const r = await fetch(`${BASE}/${svc.name}/FeatureServer/0/query?${new URLSearchParams({ where: "1=1", outFields: "PARCEL_ID", returnGeometry: "false", f: "json", resultRecordCount: "3" })}`); const dd = await r.json(); if (dd.features?.length > 0) { const samples = dd.features.map(f=>f.attributes.PARCEL_ID).join(", "); addLog(`✓ ${svc.label} connected. Sample IDs: ${samples}`, "ok"); } else addLog(`⚠ ${svc.label}: 0 features returned`, "err"); } catch (e) { addLog(`✗ ${svc.label}: ${e.message}`, "err"); } }
+  // Also test statewide
+  try { const r = await fetch(`${BASE}/Parcels_Utah/FeatureServer/0/query?${new URLSearchParams({ where: "1=1", outFields: "PARCEL_ID", returnGeometry: "false", f: "json", resultRecordCount: "1" })}`); const dd = await r.json(); if (dd.features?.length > 0) addLog(`✓ Statewide: "${dd.features[0].attributes.PARCEL_ID}"`, "ok"); } catch (e) { addLog(`✗ Statewide: ${e.message}`, "err"); }
+  if (toQ.length > 0) addLog(`Our parcel format: "${toQ[0].parcel}" | acct: "${toQ[0].acct}"`, "info");
+
+  // Try batch mode first (much faster and more reliable for short IDs like Kane's)
+  addLog(`Trying batch lookup...`, "info");
+  for (const svc of svcs) {
+    const batchResults = await qBatch(svc, toQ.filter(p => p.status !== "found"));
+    for (const p of toQ) {
+      if (p.status === "found") continue;
+      const res = batchResults[p.parcel];
+      if (res) {
+        found++; p.lat = res.lat; p.lon = res.lon; p.status = "found"; p.match = res.match;
+        d.coordCache[p.parcel] = { lat: res.lat, lon: res.lon, match: res.match, acres: res.acres || 0 };
+        if (res.acres > 0 && (!p.acres || p.acres === 0)) p.acres = res.acres;
+        addLog(`  ✓ ${p.parcel}: ${res.lat.toFixed(5)}, ${res.lon.toFixed(5)}${res.acres ? ` | ${res.acres} ac` : ''}`, "ok");
+      }
+    }
+  }
+  const remaining = toQ.filter(p => p.status !== "found");
+  addLog(`Batch found ${found - sk}. ${remaining.length} remaining for individual lookup...`, remaining.length > 0 ? "info" : "ok");
+  renderTable();
+  const batchPct = Math.round((found / (toQ.length + sk)) * 100);
+  document.getElementById("progressFill").style.width = `${batchPct}%`;
+  document.getElementById("progressText").textContent = `${found} / ${active.length}`;
+  document.getElementById("foundText").textContent = `${found} found`;
+
+  // Individual fallback for anything batch missed
+  for (const p of remaining) {
+    done++;
+    addLog(`[${done}/${remaining.length}] parcel:${p.parcel} acct:${p.acct}`, "info"); p.status = "searching"; renderTable();
+    let res = null;
+    for (const svc of svcs) { res = await qS(svc, p.parcel); if (res) break; await new Promise(r => setTimeout(r, 150)); }
+    if (!res && p.acct) { for (const svc of svcs) { res = await qByAcct(svc, p.acct); if (res) break; await new Promise(r => setTimeout(r, 150)); } }
+    if (!res) res = await qStatewide(p.parcel, p.acct);
+    done++; if (res) { found++; p.lat = res.lat; p.lon = res.lon; p.status = "found"; p.match = res.match; d.coordCache[p.parcel] = { lat: res.lat, lon: res.lon, match: res.match, acres: res.acres || 0 };
+      if (res.acres > 0 && (!p.acres || p.acres === 0)) { p.acres = res.acres; addLog(`  ✓ ${res.lat.toFixed(5)}, ${res.lon.toFixed(5)} | ${res.acres} ac`, "ok"); }
+      else addLog(`  ✓ ${res.lat.toFixed(5)}, ${res.lon.toFixed(5)}`, "ok"); }
+    else { p.status = "not_found"; addLog(`  ✗ Not found`, "err"); }
+    const pct = Math.round((found / active.length) * 100); btn.textContent = `SEARCHING ${pct}%`;
+    document.getElementById("progressFill").style.width = `${pct}%`;
+    document.getElementById("progressText").textContent = `${found} / ${active.length}`;
+    document.getElementById("foundText").textContent = `${found} found`;
+    renderTable(); await new Promise(r => setTimeout(r, 200));
+  }
+  addLog(`\nDONE: ${found}/${active.length} located`, "ok");
+  btn.disabled = false; btn.textContent = "FETCH COORDINATES"; isRunning = false; renderSummary(); saveCounty();
+}
+
+// ===== EXPORTS =====
+function dl(c, f, m) { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([c], { type: m })); a.download = f; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
+function ds() { return new Date().toISOString().slice(0, 10); }
+function downloadGPX() { const d = cur(); const f = d.parcels.filter(r => r.active && r.lat && r.lon); let g = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="UtahTaxTracker" xmlns="http://www.topografix.com/GPX/1/1">\n`; for (const r of f) { const nt = d.notes[r.parcel] ? ` | ${d.notes[r.parcel]}` : ""; const n = `[${sT(r.acres)}] #${r.sale} ${r.owner}${r.acres > 0 ? ` ${r.acres}ac` : ''} $${r.due}${nt}`.replace(/&/g, "&amp;").replace(/</g, "&lt;"); g += `  <wpt lat="${r.lat.toFixed(6)}" lon="${r.lon.toFixed(6)}">\n    <name>${n}</name>\n  </wpt>\n`; } g += `</gpx>`; dl(g, `${currentCounty}_tax_${ds()}.gpx`, "application/gpx+xml"); }
+function downloadCSV() { const d = cur(); const f = d.parcels.filter(r => r.active && r.lat && r.lon); let c = "Name,Location,Acres,Due,Size Group,Notes\n"; for (const r of f) { const n = `#${r.sale} ${r.owner}${r.acres > 0 ? ` (${r.acres}ac)` : ''}`.replace(/,/g, " "); const nt = (d.notes[r.parcel] || "").replace(/"/g, '""'); c += `"${n}","${r.lat.toFixed(6)}, ${r.lon.toFixed(6)}",${r.acres},"$${r.due.toFixed(2)}","${sT(r.acres)}","${nt}"\n`; } dl(c, `${currentCounty}_tax_${ds()}.csv`, "text/csv"); }
+function downloadKML() { const d = cur(); const f = d.parcels.filter(r => r.active && r.lat && r.lon); let k = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${cfg().name} Tax Sale ${ds()}</name>\n`; for (const r of f) { const nt = d.notes[r.parcel] ? ` | ${d.notes[r.parcel]}` : ""; const n = `#${r.sale} ${r.owner}${r.acres > 0 ? ` ${r.acres}ac` : ''} $${r.due}${nt}`.replace(/&/g, "&amp;").replace(/</g, "&lt;"); k += `<Placemark><name>${n}</name><Point><coordinates>${r.lon.toFixed(6)},${r.lat.toFixed(6)},0</coordinates></Point></Placemark>\n`; } k += `</Document></kml>`; dl(k, `${currentCounty}_tax_${ds()}.kml`, "application/vnd.google-earth.kml+xml"); }
+
+// ===== INIT =====
+(async function () {
+  await loadCounty("iron");
+  await loadCounty("washington");
+  await loadCounty("kane");
+  await loadCounty("duchesne");
+  switchCounty("iron");
+  try { const r = await fetch('/api/me'); if (r.ok) { const d = await r.json(); document.getElementById('userInfo').textContent = d.user; document.getElementById('authBar').style.display = 'flex'; } } catch { }
+})();
+</script>
+</body>
+</html>
